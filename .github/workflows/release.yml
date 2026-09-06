@@ -23,7 +23,7 @@ jobs:
 
       # 1. Project Type Detection
       - name: Detect Project Type
-        id: detect-project
+        id: detect_project
         run: |
           if [ -f "build.gradle.kts" ] || [ -f "build.gradle" ] || [ -f "settings.gradle.kts" ]; then
             echo "project_type=android" >> $GITHUB_OUTPUT
@@ -38,7 +38,7 @@ jobs:
 
       # 2. Android Build Pipeline
       - name: Set up JDK 17 (Temurin)
-        if: steps:detect-project.outputs.project_type == 'android'
+        if: steps.detect_project.outputs.project_type == 'android'
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
@@ -46,7 +46,7 @@ jobs:
           cache: 'gradle'
 
       - name: Prepare Android Keystore and Permissions
-        if: steps:detect-project.outputs.project_type == 'android'
+        if: steps.detect_project.outputs.project_type == 'android'
         run: |
           # Restore debug.keystore from base64 if present, or generate a standard debug keystore
           if [ -f "debug.keystore.base64" ]; then
@@ -63,13 +63,13 @@ jobs:
           fi
 
       - name: Build Android Debug APK
-        if: steps:detect-project.outputs.project_type == 'android'
+        if: steps.detect_project.outputs.project_type == 'android'
         run: |
           ./gradlew assembleDebug --no-daemon --stacktrace
 
       - name: Locate Android Artifact
-        if: steps:detect-project.outputs.project_type == 'android'
-        id: android-artifact
+        if: steps.detect_project.outputs.project_type == 'android'
+        id: android_artifact
         run: |
           APK_PATH=$(find app/build/outputs/apk/debug -name "*.apk" | head -n 1)
           if [ -n "$APK_PATH" ]; then
@@ -83,15 +83,15 @@ jobs:
 
       # 3. Web/Node.js Pipeline (if applicable)
       - name: Set up Node.js LTS
-        if: steps:detect-project.outputs.project_type == 'node'
+        if: steps.detect_project.outputs.project_type == 'node'
         uses: actions/setup-node@v4
         with:
           node-version: 'lts/*'
           cache: 'npm'
 
       - name: Build Web Application
-        if: steps:detect-project.outputs.project_type == 'node'
-        id: node-artifact
+        if: steps.detect_project.outputs.project_type == 'node'
+        id: node_artifact
         run: |
           npm ci || npm install
           npm run build
@@ -109,12 +109,12 @@ jobs:
 
       # 4. Resolve Final Artifact
       - name: Resolve Release Artifact
-        id: resolve-artifact
+        id: resolve_artifact
         run: |
-          if [ "${{ steps.detect-project.outputs.project_type }}" == "android" ]; then
-            echo "artifact_path=${{ steps.android-artifact.outputs.artifact_path }}" >> $GITHUB_OUTPUT
-          elif [ "${{ steps.detect-project.outputs.project_type }}" == "node" ]; then
-            echo "artifact_path=${{ steps.node-artifact.outputs.artifact_path }}" >> $GITHUB_OUTPUT
+          if [ "${{ steps.detect_project.outputs.project_type }}" = "android" ]; then
+            echo "artifact_path=${{ steps.android_artifact.outputs.artifact_path }}" >> $GITHUB_OUTPUT
+          elif [ "${{ steps.detect_project.outputs.project_type }}" = "node" ]; then
+            echo "artifact_path=${{ steps.node_artifact.outputs.artifact_path }}" >> $GITHUB_OUTPUT
           else
             echo "artifact_path=" >> $GITHUB_OUTPUT
           fi
@@ -123,7 +123,7 @@ jobs:
       - name: Publish GitHub Release
         uses: ncipollo/release-action@v1
         with:
-          artifacts: ${{ steps.resolve-artifact.outputs.artifact_path }}
+          artifacts: ${{ steps.resolve_artifact.outputs.artifact_path }}
           tag: "v1.0.${{ github.run_number }}"
           name: "Calculator v1.0.${{ github.run_number }}"
           body: "Official automated production release ready for direct download and installation."
